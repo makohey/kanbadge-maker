@@ -94,7 +94,7 @@
     z-index: 1;
   }
 
-  /* 黒：裁断線 */
+  /* 黒：裁断線。これは印刷する */
   .cut-line {
     position: absolute;
     inset: 0;
@@ -104,7 +104,7 @@
     z-index: 4;
   }
 
-  /* 赤：仕上がり線 */
+  /* 赤：仕上がり線。画面だけ */
   .finish-line {
     position: absolute;
     border: 0.35mm solid rgba(255,0,0,.8);
@@ -113,7 +113,7 @@
     z-index: 3;
   }
 
-  /* 青：安全エリア */
+  /* 青：安全エリア。画面だけ */
   .safe-line {
     position: absolute;
     border: 0.3mm dashed rgba(0,120,255,.85);
@@ -143,6 +143,12 @@
       margin: 0;
       padding: 10mm;
       box-shadow: none;
+    }
+
+    /* 印刷では赤と青を消す */
+    .finish-line,
+    .safe-line {
+      display: none;
     }
 
     @page {
@@ -197,9 +203,10 @@
   <button onclick="window.print()">印刷する</button>
 
   <p class="note">
-    黒の外円＝裁断線 ／ 赤＝仕上がり線 ／ 青＝安全エリア。<br>
-    印刷時は「倍率100%」「用紙に合わせるオフ」で印刷。<br>
-    画像は背景ではなく普通の画像として配置しているので、印刷で消えにくい版。
+    黒の外円＝裁断線。これは印刷されます。<br>
+    赤＝仕上がり確認線。画面だけ表示、印刷では消えます。<br>
+    青＝安全エリア確認線。画面だけ表示、印刷では消えます。<br>
+    印刷時は「倍率100%」「用紙に合わせるオフ」で印刷。
   </p>
 </div>
 
@@ -270,10 +277,6 @@ function render() {
       const img = document.createElement("img");
       img.src = imageURL;
 
-      /*
-        画像を裁断円基準で配置。
-        background-imageではないので印刷時に消えにくい。
-      */
       img.style.width = (preset.cut * scale / 100) + "mm";
       img.style.height = "auto";
       img.style.transform =
