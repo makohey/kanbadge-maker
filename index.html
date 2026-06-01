@@ -3,20 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <title>缶バッチ治具メーカー</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
+  * {
+    box-sizing: border-box;
+  }
+
   body {
-    font-family: system-ui, sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     background: #f3f3f3;
     margin: 0;
     padding: 20px;
+    color: #222;
   }
 
   .controls {
     background: white;
     padding: 16px;
     border-radius: 12px;
-    margin-bottom: 20px;
+    margin: 0 auto 20px;
+    max-width: 980px;
     box-shadow: 0 2px 10px rgba(0,0,0,.12);
+  }
+
+  h1 {
+    font-size: 22px;
+    margin: 0 0 12px;
   }
 
   label {
@@ -29,70 +42,107 @@
     padding: 6px;
   }
 
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    background: #111;
+    color: #fff;
+    padding: 8px 14px;
+  }
+
+  .note {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #444;
+  }
+
+  .sheet-wrap {
+    overflow: auto;
+  }
+
   .sheet {
     width: 210mm;
     min-height: 297mm;
     background: white;
     margin: auto;
     padding: 10mm;
-    box-sizing: border-box;
     display: flex;
     flex-wrap: wrap;
     align-content: flex-start;
     gap: 4mm;
+    box-shadow: 0 2px 14px rgba(0,0,0,.18);
   }
 
   .badge {
     position: relative;
     border-radius: 50%;
     overflow: hidden;
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-position: center;
+    background: white;
+    flex: 0 0 auto;
     break-inside: avoid;
   }
 
-  .badge::before {
-    content: "";
+  .badge img {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform-origin: center center;
+    max-width: none;
+    max-height: none;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* 黒：裁断線 */
+  .cut-line {
     position: absolute;
     inset: 0;
     border: 0.35mm dashed #000;
     border-radius: 50%;
-    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 4;
   }
 
+  /* 赤：仕上がり線 */
   .finish-line {
     position: absolute;
-    border: 0.35mm solid rgba(255,0,0,.75);
+    border: 0.35mm solid rgba(255,0,0,.8);
     border-radius: 50%;
-    box-sizing: border-box;
     pointer-events: none;
+    z-index: 3;
   }
 
+  /* 青：安全エリア */
   .safe-line {
     position: absolute;
-    border: 0.3mm dashed rgba(0,120,255,.8);
+    border: 0.3mm dashed rgba(0,120,255,.85);
     border-radius: 50%;
-    box-sizing: border-box;
     pointer-events: none;
+    z-index: 3;
   }
 
   @media print {
     body {
       background: white;
       padding: 0;
+      margin: 0;
     }
 
     .controls {
       display: none;
     }
 
+    .sheet-wrap {
+      overflow: visible;
+    }
+
     .sheet {
-      margin: 0;
-      box-shadow: none;
       width: 210mm;
       min-height: 297mm;
+      margin: 0;
       padding: 10mm;
+      box-shadow: none;
     }
 
     @page {
@@ -102,10 +152,11 @@
   }
 </style>
 </head>
+
 <body>
 
 <div class="controls">
-  <h2>缶バッチ治具メーカー</h2>
+  <h1>缶バッチ治具メーカー</h1>
 
   <label>
     画像：
@@ -122,35 +173,39 @@
 
   <label>
     個数：
-    <input type="number" id="countInput" value="12" min="1" max="60">
+    <input type="number" id="countInput" value="12" min="1" max="80">
   </label>
 
   <br>
 
   <label>
     拡大：
-    <input type="range" id="scaleInput" min="60" max="200" value="100">
+    <input type="range" id="scaleInput" min="60" max="220" value="120">
+    <span id="scaleValue">120%</span>
   </label>
 
   <label>
     横位置：
-    <input type="range" id="xInput" min="-100" max="100" value="0">
+    <input type="range" id="xInput" min="-80" max="80" value="0">
   </label>
 
   <label>
     縦位置：
-    <input type="range" id="yInput" min="-100" max="100" value="0">
+    <input type="range" id="yInput" min="-80" max="80" value="0">
   </label>
 
   <button onclick="window.print()">印刷する</button>
 
-  <p>
+  <p class="note">
     黒の外円＝裁断線 ／ 赤＝仕上がり線 ／ 青＝安全エリア。<br>
-    印刷時は「倍率100%」「用紙に合わせるオフ」で印刷。
+    印刷時は「倍率100%」「用紙に合わせるオフ」で印刷。<br>
+    画像は背景ではなく普通の画像として配置しているので、印刷で消えにくい版。
   </p>
 </div>
 
-<div class="sheet" id="sheet"></div>
+<div class="sheet-wrap">
+  <div class="sheet" id="sheet"></div>
+</div>
 
 <script>
 const presets = {
@@ -172,18 +227,24 @@ const imageInput = document.getElementById("imageInput");
 const sizeSelect = document.getElementById("sizeSelect");
 const countInput = document.getElementById("countInput");
 const scaleInput = document.getElementById("scaleInput");
+const scaleValue = document.getElementById("scaleValue");
 const xInput = document.getElementById("xInput");
 const yInput = document.getElementById("yInput");
 const sheet = document.getElementById("sheet");
 
-imageInput.addEventListener("change", e => {
+imageInput.addEventListener("change", function(e) {
   const file = e.target.files[0];
   if (!file) return;
+
+  if (imageURL) {
+    URL.revokeObjectURL(imageURL);
+  }
+
   imageURL = URL.createObjectURL(file);
   render();
 });
 
-[sizeSelect, countInput, scaleInput, xInput, yInput].forEach(el => {
+[sizeSelect, countInput, scaleInput, xInput, yInput].forEach(function(el) {
   el.addEventListener("input", render);
 });
 
@@ -193,38 +254,52 @@ function render() {
   const size = sizeSelect.value;
   const preset = presets[size];
   const count = Number(countInput.value);
-
   const scale = Number(scaleInput.value);
   const x = Number(xInput.value);
   const y = Number(yInput.value);
 
+  scaleValue.textContent = scale + "%";
+
   for (let i = 0; i < count; i++) {
     const badge = document.createElement("div");
     badge.className = "badge";
-
     badge.style.width = preset.cut + "mm";
     badge.style.height = preset.cut + "mm";
 
     if (imageURL) {
-      badge.style.backgroundImage = `url(${imageURL})`;
-      badge.style.backgroundSize = `${scale}%`;
-      badge.style.backgroundPosition = `${50 + x / 2}% ${50 + y / 2}%`;
+      const img = document.createElement("img");
+      img.src = imageURL;
+
+      /*
+        画像を裁断円基準で配置。
+        background-imageではないので印刷時に消えにくい。
+      */
+      img.style.width = (preset.cut * scale / 100) + "mm";
+      img.style.height = "auto";
+      img.style.transform =
+        "translate(calc(-50% + " + (x / 4) + "mm), calc(-50% + " + (y / 4) + "mm))";
+
+      badge.appendChild(img);
     }
+
+    const cut = document.createElement("div");
+    cut.className = "cut-line";
 
     const finish = document.createElement("div");
     finish.className = "finish-line";
     finish.style.width = preset.finish + "mm";
     finish.style.height = preset.finish + "mm";
-    finish.style.left = `calc(50% - ${preset.finish / 2}mm)`;
-    finish.style.top = `calc(50% - ${preset.finish / 2}mm)`;
+    finish.style.left = "calc(50% - " + (preset.finish / 2) + "mm)";
+    finish.style.top = "calc(50% - " + (preset.finish / 2) + "mm)";
 
     const safe = document.createElement("div");
     safe.className = "safe-line";
     safe.style.width = preset.safe + "mm";
     safe.style.height = preset.safe + "mm";
-    safe.style.left = `calc(50% - ${preset.safe / 2}mm)`;
-    safe.style.top = `calc(50% - ${preset.safe / 2}mm)`;
+    safe.style.left = "calc(50% - " + (preset.safe / 2) + "mm)";
+    safe.style.top = "calc(50% - " + (preset.safe / 2) + "mm)";
 
+    badge.appendChild(cut);
     badge.appendChild(finish);
     badge.appendChild(safe);
     sheet.appendChild(badge);
