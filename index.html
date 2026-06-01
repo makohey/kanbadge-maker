@@ -94,7 +94,6 @@
     z-index: 1;
   }
 
-  /* 黒：裁断線。これは印刷する */
   .cut-line {
     position: absolute;
     inset: 0;
@@ -104,7 +103,6 @@
     z-index: 4;
   }
 
-  /* 赤：仕上がり線。画面だけ */
   .finish-line {
     position: absolute;
     border: 0.35mm solid rgba(255,0,0,.8);
@@ -113,13 +111,20 @@
     z-index: 3;
   }
 
-  /* 青：安全エリア。画面だけ */
   .safe-line {
     position: absolute;
     border: 0.3mm dashed rgba(0,120,255,.85);
     border-radius: 50%;
     pointer-events: none;
     z-index: 3;
+  }
+
+  .empty {
+    width: 100%;
+    padding: 30mm 0;
+    text-align: center;
+    color: #777;
+    font-size: 18px;
   }
 
   @media print {
@@ -145,7 +150,6 @@
       box-shadow: none;
     }
 
-    /* 印刷では赤と青を消す */
     .finish-line,
     .safe-line {
       display: none;
@@ -166,7 +170,7 @@
 
   <label>
     画像：
-    <input type="file" id="imageInput" accept="image/*">
+    <input type="file" id="imageInput" accept="image/*" multiple>
   </label>
 
   <label>
@@ -178,7 +182,15 @@
   </label>
 
   <label>
-    個数：
+    表示モード：
+    <select id="modeSelect">
+      <option value="once">選んだ画像を1回ずつ</option>
+      <option value="repeat">選んだ画像でA4を埋める</option>
+    </select>
+  </label>
+
+  <label>
+    最大個数：
     <input type="number" id="countInput" value="12" min="1" max="80">
   </label>
 
@@ -203,6 +215,7 @@
   <button onclick="window.print()">印刷する</button>
 
   <p class="note">
+    画像は複数選択できます。<br>
     黒の外円＝裁断線。これは印刷されます。<br>
     赤＝仕上がり確認線。画面だけ表示、印刷では消えます。<br>
     青＝安全エリア確認線。画面だけ表示、印刷では消えます。<br>
@@ -219,19 +232,22 @@ const presets = {
   "32": {
     cut: 43,
     finish: 32,
-    safe: 28
+    safe: 28,
+    defaultCount: 12
   },
   "58": {
     cut: 70,
     finish: 58,
-    safe: 52
+    safe: 52,
+    defaultCount: 6
   }
 };
 
-let imageURL = "";
+let images = [];
 
 const imageInput = document.getElementById("imageInput");
 const sizeSelect = document.getElementById("sizeSelect");
+const modeSelect = document.getElementById("modeSelect");
 const countInput = document.getElementById("countInput");
 const scaleInput = document.getElementById("scaleInput");
 const scaleValue = document.getElementById("scaleValue");
@@ -240,50 +256,87 @@ const yInput = document.getElementById("yInput");
 const sheet = document.getElementById("sheet");
 
 imageInput.addEventListener("change", function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+  images.forEach(function(item) {
+    URL.revokeObjectURL(item.url);
+  });
 
-  if (imageURL) {
-    URL.revokeObjectURL(imageURL);
-  }
+  images = Array.from(e.target.files).map(function(file) {
+    return {
+      name: file.name,
+      url: URL.createObjectURL(file)
+    };
+  });
 
-  imageURL = URL.createObjectURL(file);
   render();
 });
 
-[sizeSelect, countInput, scaleInput, xInput, yInput].forEach(function(el) {
+sizeSelect.addEventListener("change", function() {
+  const preset = presets[sizeSelect.value];
+  countInput.value = preset.defaultCount;
+  render();
+});
+
+[modeSelect, countInput, scaleInput, xInput, yInput].forEach(function(el) {
   el.addEventListener("input", render);
 });
+
+function getImageList() {
+  const maxCount = Number(countInput.value);
+
+  if (images.length === 0) {
+    return [];
+  }
+
+  if (modeSelect.value === "once") {
+    return images.slice(0, maxCount);
+  }
+
+  const list = [];
+
+  for (let i = 0; i < maxCount; i++) {
+    list.push(images[i % images.length]);
+  }
+
+  return list;
+}
 
 function render() {
   sheet.innerHTML = "";
 
   const size = sizeSelect.value;
   const preset = presets[size];
-  const count = Number(countInput.value);
   const scale = Number(scaleInput.value);
   const x = Number(xInput.value);
   const y = Number(yInput.value);
 
   scaleValue.textContent = scale + "%";
 
-  for (let i = 0; i < count; i++) {
+  const imageList = getImageList();
+
+  if (imageList.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "画像を選んでください";
+    sheet.appendChild(empty);
+    return;
+  }
+
+  imageList.forEach(function(imageItem) {
     const badge = document.createElement("div");
     badge.className = "badge";
     badge.style.width = preset.cut + "mm";
     badge.style.height = preset.cut + "mm";
 
-    if (imageURL) {
-      const img = document.createElement("img");
-      img.src = imageURL;
+    const img = document.createElement("img");
+    img.src = imageItem.url;
+    img.alt = imageItem.name;
 
-      img.style.width = (preset.cut * scale / 100) + "mm";
-      img.style.height = "auto";
-      img.style.transform =
-        "translate(calc(-50% + " + (x / 4) + "mm), calc(-50% + " + (y / 4) + "mm))";
+    img.style.width = (preset.cut * scale / 100) + "mm";
+    img.style.height = "auto";
+    img.style.transform =
+      "translate(calc(-50% + " + (x / 4) + "mm), calc(-50% + " + (y / 4) + "mm))";
 
-      badge.appendChild(img);
-    }
+    badge.appendChild(img);
 
     const cut = document.createElement("div");
     cut.className = "cut-line";
@@ -306,7 +359,7 @@ function render() {
     badge.appendChild(finish);
     badge.appendChild(safe);
     sheet.appendChild(badge);
-  }
+  });
 }
 
 render();
